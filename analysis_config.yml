@@ -1,0 +1,18 @@
+parallel_njobs: 30
+theta: 0.1
+exclusion_radius: 1.0
+offset_max: 1.5
+aeff_max: 10
+mimic_data:
+    az_thresh: 45
+energy_binning:
+    energy_lo: 0.3
+    energy_hi: 10
+    energy_bins: 6
+acceptance:
+    hour: 100
+    binsz: 0.1
+    width: 3.5
+skymap:
+    binsz: 0.05
+    width: 3.5
