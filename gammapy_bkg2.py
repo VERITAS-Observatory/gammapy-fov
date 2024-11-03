@@ -329,15 +329,21 @@ def shifted_sky(obspair, r_src=0.4, binsz=0.05, width=3.5):
 
 
 
-def plot_obs(observation, gamma_only=True, mask=None, binsz=0.05, width=3.5, **kwargs):
-    pointing = observation.pointing.radec
-    geom = WcsGeom.create(binsz=binsz, frame='icrs', skydir=pointing, width=width)
-    skymap = WcsNDMap(geom)
-    if gamma_only: events = select_gammas(observation)
-    else: events = observation.events
-    skymap.fill_events(events)
-    if mask is not None: skymap *= mask
-    skymap.plot(**kwargs)
+def plot_obs(observations, gamma_only=True, mask=None, binsz=0.05, width=3.5, **kwargs):
+    nrows = int(np.ceil(len(observations)/8))
+    f = plt.figure(figsize=(8*2,nrows*2))
+    for idx, observation in enumerate(observations):
+        pointing = observation.pointing.radec
+        geom = WcsGeom.create(binsz=binsz, frame='icrs', skydir=pointing, width=width)
+        skymap = WcsNDMap(geom)
+        if gamma_only: events = select_gammas(observation)
+        else: events = observation.events
+        skymap.fill_events(events)
+        if mask is not None: skymap *= mask
+        ax = plt.subplot(nrows, 8, idx+1, projection=skymap.geom.wcs)
+        skymap.plot(ax=ax, **kwargs)
+        ax.annotate(observation.obs_id,(0.03,0.9),xycoords='axes fraction',color='w')
+    f.tight_layout()
 
     
 def lima17(Non, Noff, alpha):
