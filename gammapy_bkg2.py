@@ -6,7 +6,7 @@ from astropy.table import Table, unique, vstack
 from astropy.coordinates import SkyCoord
 from gammapy.irf import Background3D, Background2D
 from gammapy.maps import WcsGeom, WcsNDMap, RegionGeom, Map
-from gammapy.data import DataStore, Observatfions, EventList
+from gammapy.data import DataStore, Observations, EventList
 from gammapy.analysis import Analysis, AnalysisConfig
 from gammapy.datasets import MapDatasetEventSampler, Datasets, MapDatasetOnOff, SpectrumDataset
 from gammapy.makers import ReflectedRegionsFinder, RingBackgroundMaker, SpectrumDatasetMaker, ReflectedRegionsBackgroundMaker
