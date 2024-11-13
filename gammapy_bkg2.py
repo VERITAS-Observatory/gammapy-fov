@@ -377,7 +377,7 @@ def sigmap(dataset, kernel=None, stat='cash'):
     
 
 def plot_sig(significance_map, exclusion_mask, exclusion_radius, significance_map_conv=None,
-             vmin=-5, vmax=5, prefix=None):
+             dist=True, vmin=-5, vmax=5, prefix=None):
     
     mask_copy = exclusion_mask.copy()*1.0
     mask_copy.data[mask_copy.data==0.0] = np.inf
@@ -385,54 +385,62 @@ def plot_sig(significance_map, exclusion_mask, exclusion_radius, significance_ma
     significance_all = significance_map.data[np.isfinite(significance_map.data)]
     significance_off = significance_map_off.data[np.isfinite(significance_map_off.data)]
 
-    f = plt.figure(figsize=(13, 10))
+    f = plt.figure(figsize=(6*(1+dist),4))
 
-    ax1 = plt.subplot(221, projection=significance_map.geom.wcs)
+    ax1 = plt.subplot(1, 1+dist, 1, projection=significance_map.geom.wcs)
     if significance_map_conv is not None:
-        significance_map_conv.plot(ax=ax1, add_cbar=True, vmin=vmin, vmax=vmax, cmap='coolwarm')
-    else: significance_map.plot(ax=ax1, add_cbar=True, vmin=vmin, vmax=vmax, cmap='coolwarm')
+        im = significance_map_conv.plot(ax=ax1, add_cbar=True, vmin=vmin, vmax=vmax, cmap='coolwarm')
+        cbar = im.images[-1].colorbar
+        cbar.set_label('sqrt(TS)')
+    else:
+        im = significance_map.plot(ax=ax1, add_cbar=True, vmin=vmin, vmax=vmax, cmap='coolwarm')
+        cbar = plt.colorbar(im)
+        cbar.set_label('sqrt(TS)')        
     CircleSkyRegion(
         significance_map.geom.center_skydir,exclusion_radius).to_pixel(
         significance_map.geom.wcs).plot(
         ax=ax1, lw=2)
 
-
-    x = np.linspace(-6, 6, 60)
-    mu, std = norm.fit(significance_off)
-    p = norm.pdf(x, 0, 1)
-    significance_all[significance_all <= -6] = -6
-    significance_all[significance_all >= 6] = 6
-    significance_off[significance_off <= -6] = -6
-    significance_off[significance_off >= 6] = 6   
-
-    ax2 = plt.subplot(222)
-    ax2.hist(
-        significance_all,
-        density=True,
-        alpha=0.5,
-        label="all bins",
-        bins=x,
-    )
-
-    ax2.hist(
-        significance_off,
-        density=True,
-        facecolor="None",
-        alpha=0.5,
-        edgecolor="k",
-        label="off bins",
-        bins=x,
-    )
-
-    ax2.plot(x, p, lw=2, color="black")
-    ax2.legend()
-    ax2.set_xlabel("Significance")
-    ax2.set_yscale("log")
-    ax2.set_ylim(1e-5, 1)
-    ax2.set_xlim(-6, 6)
-    ax2.annotate(f"mu = {mu:.2f}\nstd = {std:.2f}", xy=(0.05, 0.9), xycoords="axes fraction")
+    if dist:
+        x = np.linspace(-6, 6, 60)
+        mu, std = norm.fit(significance_off)
+        p = norm.pdf(x, 0, 1)
+        significance_all[significance_all <= -6] = -6
+        significance_all[significance_all >= 6] = 6
+        significance_off[significance_off <= -6] = -6
+        significance_off[significance_off >= 6] = 6   
     
-    if prefix is not None: f.savefig(f'{prefix}_sig_dist.png', bbox_inches='tight')  
+        ax2 = plt.subplot(1, 2, 2)
+        ax2.hist(
+            significance_all,
+            density=True,
+            alpha=0.5,
+            label="all bins",
+            bins=x,
+        )
+    
+        ax2.hist(
+            significance_off,
+            density=True,
+            facecolor="None",
+            alpha=0.5,
+            edgecolor="k",
+            label="off bins",
+            bins=x,
+        )
+    
+        ax2.plot(x, p, lw=2, color="black")
+        ax2.legend()
+        ax2.set_xlabel("Significance")
+        ax2.set_yscale("log")
+        ax2.set_ylim(1e-5, 1)
+        ax2.set_xlim(-6, 6)
+        ax2.annotate(f"mu = {mu:.2f}\nstd = {std:.2f}", xy=(0.05, 0.9), xycoords="axes fraction")
+    
+    if prefix is not None:
+        name = f'{prefix}_sig'
+        if dist: name = f'{name}_dist'
+        f.savefig(f'{name}.png', bbox_inches='tight', dpi=300)  
     
     
 def plot_bkg(bkgrate, prefix=None):
