@@ -19,6 +19,7 @@ from astropy.table import Table
 
 datadir = os.environ['VTS_GP']+'/data'
 targetlist = f'{datadir}/VERITAS_targets.json'
+# epoch date ranges stored in json can be found at https://veritas.sao.arizona.edu/wiki/Epoch_boundary_run_number
 epochs = f'{datadir}/epochs.json'
 with open(epochs, 'r') as fp: epochs = json.load(fp)
 
@@ -38,6 +39,8 @@ def get_epoch(run_id):
 
     start_time = res[0]['data_start_time']
     date_format = '%Y-%m-%d %H:%M:%S'
+
+    epoch = None
     for ep in epochs.keys():
         start, end = epochs[ep]
         after = datetime.datetime.strptime(end, date_format) > start_time
@@ -45,6 +48,8 @@ def get_epoch(run_id):
         if after and before:
             epoch = ep
         else: continue
+    if epoch is None:
+        print("Run with run_id", run_id, "is missing epoch info. Is epochs.json up to date?")
     return epoch
 
 

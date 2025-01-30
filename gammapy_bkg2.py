@@ -83,7 +83,7 @@ def weight_by_duration(runinfo, name, mode):
     if mode == 'average': return np.average(data, weights=weights)
     elif mode == 'data': return data * weights / np.average(weights)
 
-def plot_runs_info(runinfo, thresh_az=None, prefix=None):
+def plot_runs_info(runinfo, el=None, thresh_az=None, prefix=None):
     src_id = np.array([run['run_id'] for run in runinfo])
     src_el = np.array([run['elevation'] for run in runinfo])
     src_nsb = np.array([run['current'] for run in runinfo])
@@ -99,7 +99,7 @@ def plot_runs_info(runinfo, thresh_az=None, prefix=None):
     p = norm.pdf(x, mu, std)
     ax1.plot(x, p, lw=2, color="black")
     ax1.set_title(f'elevation (mu: {mu:.4}, std: {std:.4})')
-    ax1.set_xlim(50,90)
+    if el: ax1.set_xlim(el[0], el[1])
     ax1.annotate(prefix, (0.1,0.9), xycoords='axes fraction', fontsize=16)
     
     ax2 = plt.subplot(142)
@@ -107,7 +107,7 @@ def plot_runs_info(runinfo, thresh_az=None, prefix=None):
     ax2.hlines(mu,np.min(src_id),np.max(src_id),lw=3,color='r')
     ax2.fill_between([np.min(src_id),np.max(src_id)], mu-std, mu+std, color='r', alpha=0.2)
     ax2.set_title(f'elevation ({mu:.4} +- {std:.4})')
-    ax2.set_ylim(50,90)
+    # if el: ax2.set_xlim(el[0], el[1])
     
     ax3 = plt.subplot(143)
     src_az_avg = weight_by_duration(runinfo, 'azimuth', mode='average')
@@ -188,7 +188,7 @@ def select_hadrons(obs, energy=None):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         hadrons = obs.events
-        skydir = obs.pointing_radec
+        skydir = obs.meta.pointing.radec_mean
         hadrons = hadrons.select_region(f'fk5;circle({skydir.ra.value},{skydir.dec.value},1.75)')
         hadrons = hadrons.select_row_subset(hadrons.table['IS_GAMMA']==False)
         if energy is not None: hadrons = hadrons.select_energy(energy.bounds)
@@ -198,7 +198,7 @@ def select_gammas(obs, energy=None):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         gammas = obs.events
-        skydir = obs.pointing_radec
+        skydir = obs.meta.pointing.radec_mean
         gammas = gammas.select_region(f'fk5;circle({skydir.ra.value},{skydir.dec.value},1.75)')
         gammas = gammas.select_row_subset(gammas.table['IS_GAMMA']==True)
         if energy is not None: gammas = gammas.select_energy(energy.bounds)
@@ -240,7 +240,7 @@ def blank_sky(obs, check_only=False, r_src=0.4, binsz=0.05, width=3.5):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         
-        pointing = obs.pointing_radec
+        pointing = obs.meta.pointing.radec_mean
         regions = star_mask(pointing)
         regions += src_mask(pointing, r_src)
         
@@ -308,8 +308,8 @@ def shifted_sky(obspair, r_src=0.4, binsz=0.05, width=3.5):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         obs, refobs = obspair
-        pointing = obs.pointing.radec
-        refpointing = refobs.pointing.radec
+        pointing = obs.meta.pointing.radec_mean
+        refpointing = refobs.meta.pointing.radec_mean
         copy_obs = obs.copy()
         geom_old = WcsGeom.create(binsz=binsz, frame='icrs', skydir=pointing, width=width)
         geom_new = WcsGeom.create(binsz=binsz, frame='icrs', skydir=refpointing, width=width)
@@ -329,21 +329,31 @@ def shifted_sky(obspair, r_src=0.4, binsz=0.05, width=3.5):
 
 
 
-def plot_obs(observations, gamma_only=True, mask=None, binsz=0.05, width=3.5, **kwargs):
-    nrows = int(np.ceil(len(observations)/8))
-    f = plt.figure(figsize=(8*2,nrows*2))
-    for idx, observation in enumerate(observations):
-        pointing = observation.pointing.radec
-        geom = WcsGeom.create(binsz=binsz, frame='icrs', skydir=pointing, width=width)
-        skymap = WcsNDMap(geom)
-        if gamma_only: events = select_gammas(observation)
-        else: events = observation.events
-        skymap.fill_events(events)
-        if mask is not None: skymap *= mask
-        ax = plt.subplot(nrows, 8, idx+1, projection=skymap.geom.wcs)
-        skymap.plot(ax=ax, **kwargs)
-        ax.annotate(observation.obs_id,(0.03,0.9),xycoords='axes fraction',color='w')
-    f.tight_layout()
+# def plot_obs(observations, gamma_only=True, mask=None, binsz=0.05, width=3.5, **kwargs):
+#     nrows = int(np.ceil(len(observations)/8))
+#     f = plt.figure(figsize=(8*2,nrows*2))
+#     for idx, observation in enumerate(observations):
+#         pointing = observation.meta.pointing.radec_mean
+#         geom = WcsGeom.create(binsz=binsz, frame='icrs', skydir=pointing, width=width)
+#         skymap = WcsNDMap(geom)
+#         if gamma_only: events = select_gammas(observation)
+#         else: events = observation.events
+#         skymap.fill_events(events)
+#         if mask is not None: skymap *= mask
+#         ax = plt.subplot(nrows, 8, idx+1, projection=skymap.geom.wcs)
+#         skymap.plot(ax=ax, **kwargs)
+#         ax.annotate(observation.obs_id,(0.03,0.9),xycoords='axes fraction',color='w')
+#     f.tight_layout()
+
+def plot_obs(observation, gamma_only=True, mask=None, binsz=0.05, width=3.5, **kwargs):
+    pointing = observation.meta.pointing.radec_mean
+    geom = WcsGeom.create(binsz=binsz, frame='icrs', skydir=pointing, width=width)
+    skymap = WcsNDMap(geom)
+    if gamma_only: events = select_gammas(observation)
+    else: events = observation.events
+    skymap.fill_events(events)
+    if mask is not None: skymap *= mask
+    skymap.plot(**kwargs)
 
     
 def lima17(Non, Noff, alpha):
@@ -376,7 +386,7 @@ def sigmap(dataset, kernel=None, stat='cash'):
         return {'sqrt_ts': sqrt_ts, 'sqrt_ts_conv': sqrt_ts_conv}
     
 
-def plot_sig(significance_map, exclusion_mask, exclusion_radius, significance_map_conv=None,
+def plot_sig(significance_map, exclusion_mask, exclusion_region, significance_map_conv=None,
              vmin=-5, vmax=5, prefix=None):
     
     mask_copy = exclusion_mask.copy()*1.0
@@ -392,9 +402,13 @@ def plot_sig(significance_map, exclusion_mask, exclusion_radius, significance_ma
         significance_map_conv.plot(ax=ax1, add_cbar=True, vmin=vmin, vmax=vmax, cmap='coolwarm')
     else: significance_map.plot(ax=ax1, add_cbar=True, vmin=vmin, vmax=vmax, cmap='coolwarm')
     CircleSkyRegion(
-        significance_map.geom.center_skydir,exclusion_radius).to_pixel(
+        exclusion_region[0], exclusion_region[1]).to_pixel(
         significance_map.geom.wcs).plot(
         ax=ax1, lw=2)
+    # CircleSkyRegion(
+    #     significance_map.geom.center_skydir,exclusion_radius).to_pixel(
+    #     significance_map.geom.wcs).plot(
+    #     ax=ax1, lw=2)
 
 
     x = np.linspace(-6, 6, 60)
@@ -432,7 +446,9 @@ def plot_sig(significance_map, exclusion_mask, exclusion_radius, significance_ma
     ax2.set_xlim(-6, 6)
     ax2.annotate(f"mu = {mu:.2f}\nstd = {std:.2f}", xy=(0.05, 0.9), xycoords="axes fraction")
     
-    if prefix is not None: f.savefig(f'{prefix}_sig_dist.png', bbox_inches='tight')  
+    if prefix is not None: f.savefig(f'{prefix}_sig_dist.png', bbox_inches='tight')
+
+    return ax1
     
     
 def plot_bkg(bkgrate, prefix=None):
