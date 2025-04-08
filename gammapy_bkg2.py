@@ -89,7 +89,7 @@ def plot_runs_info(runinfo, thresh_az=None, prefix=None, elmin=50, elmax=90, ):
     src_nsb = np.array([run['current'] for run in runinfo])
     src_az = np.array([run['azimuth'] for run in runinfo])
     
-    f = plt.figure(figsize=(24, 4))
+    f = plt.figure(figsize=(17, 4))
     
     ax1 = plt.subplot(141)
     src_el_weighted = weight_by_duration(runinfo, 'elevation', mode='data')
@@ -98,27 +98,35 @@ def plot_runs_info(runinfo, thresh_az=None, prefix=None, elmin=50, elmax=90, ):
     mu, std = norm.fit(src_el_weighted)
     p = norm.pdf(x, mu, std)
     ax1.plot(x, p, lw=2, color="black")
-    ax1.set_title(f'elevation (mu: {mu:.4}, std: {std:.4})')
+    ax1.set_title(r'Elevation ($\mu=${0:.4}$\degree$, $\sigma=${1:.4}$\degree$)'.format(mu,std), fontsize=14)
+    ax1.set_xlabel(r'Degree ($\degree$)', fontsize=14)
     ax1.set_xlim(elmin,elmax)
     ax1.annotate(prefix, (0.1,0.9), xycoords='axes fraction', fontsize=16)
+    ax1.tick_params(labelsize=12)
     
     ax2 = plt.subplot(142)
     ax2.scatter(src_id, src_el, s=10)
     ax2.hlines(mu,np.min(src_id),np.max(src_id),lw=3,color='r')
     ax2.fill_between([np.min(src_id),np.max(src_id)], mu-std, mu+std, color='r', alpha=0.2)
-    ax2.set_title(f'elevation ({mu:.4} +- {std:.4})')
+    ax2.set_title(r'Elevation ({0:.4}$\degree\pm${1:.4}$\degree$)'.format(mu,std), fontsize=14)
+    ax2.set_xlabel('Run number', fontsize=14)
+    ax2.set_ylabel(r'Degree ($\degree$)', fontsize=14)
     ax2.set_ylim(elmin,elmax)
+    ax2.tick_params(labelsize=12)
     
     ax3 = plt.subplot(143)
     src_az_avg = weight_by_duration(runinfo, 'azimuth', mode='average')
     ax3.scatter(src_id, src_az, s=10)
     ax3.hlines(src_az_avg,np.min(src_id),np.max(src_id),lw=3,color='r')
-    title = f'azimuth ({src_az_avg:.4}'
+    title = r'Azimuth ({0:.4}$\degree$'.format(src_az_avg)
     if thresh_az is not None:
         ax3.fill_between([np.min(src_id),np.max(src_id)], src_az_avg-thresh_az, src_az_avg+thresh_az, color='r', alpha=0.2)
-        title += f' +- {thresh_az}'
-    ax3.set_title(f'{title})')
+        title += r'$\pm${0:.4}'.format(thresh_az)
+    ax3.set_title(f'{title})', fontsize=14)
+    ax3.set_xlabel('Run number', fontsize=14)
+    ax3.set_ylabel(r'Degree ($\degree$)', fontsize=14)
     ax3.set_ylim(0,360)
+    ax3.tick_params(labelsize=12)
     
     ax4 = plt.subplot(144)
     x = np.linspace(np.min(src_nsb),np.max(src_nsb),30)
@@ -126,12 +134,15 @@ def plot_runs_info(runinfo, thresh_az=None, prefix=None, elmin=50, elmax=90, ):
     mu, std = norm.fit(src_nsb)
     p = norm.pdf(x, mu, std)
     ax4.plot(x, p, lw=2, color="black")
-    ax4.set_title(f'current (mu: {mu:.3}, std: {std:.2})')
+    ax4.set_title(r'NSB ($\mu=${0:.3} $\mu$A, $\sigma=${1:.2} $\mu$A)'.format(mu,std), fontsize=14)
+    ax4.set_xlabel(r'Current ($\mu$A)', fontsize=14)
     ax4.set_xlim(0,16)
+    ax4.tick_params(labelsize=12)
+
+    f.tight_layout()
     
     if prefix is not None: f.savefig(f'{prefix}_runinfo.png', bbox_inches='tight')
-#     plt.close(f)
-
+        
 
 def write_idx(bkg_model, run_id, src_name, hdu_name, dl3_dir, flush=True):
     hdu = bkg_model.to_table_hdu()
@@ -377,70 +388,83 @@ def sigmap(dataset, kernel=None, stat='cash'):
     
 
 def plot_sig(significance_map, exclusion_mask, exclusion_radius, significance_map_conv=None,
-             dist=True, vmin=-5, vmax=5, prefix=None):
-    
-    mask_copy = exclusion_mask.copy()*1.0
-    mask_copy.data[mask_copy.data==0.0] = np.inf
-    significance_map_off = significance_map * mask_copy
-    significance_all = significance_map.data[np.isfinite(significance_map.data)]
-    significance_off = significance_map_off.data[np.isfinite(significance_map_off.data)]
+             plot_on=False, dist=True, vmin=-5, vmax=5, prefix=None):
 
-    f = plt.figure(figsize=(6*(1+dist),4))
+    significance_all = significance_map.data[np.isfinite(significance_map.data)]
+    if plot_on: 
+        plot_label = 'On'
+        mask_copy = ~exclusion_mask.copy()*1.0
+    else:
+        plot_label = 'Off'
+        mask_copy = exclusion_mask.copy()*1.0
+    mask_copy.data[mask_copy.data==0.0] = np.inf
+    significance_map_plot = significance_map * mask_copy
+    significance_plot = significance_map_plot.data[np.isfinite(significance_map_plot.data)]
+
+    f = plt.figure(figsize=(5*(1+dist),4))
 
     ax1 = plt.subplot(1, 1+dist, 1, projection=significance_map.geom.wcs)
     if significance_map_conv is not None:
         im = significance_map_conv.plot(ax=ax1, add_cbar=True, vmin=vmin, vmax=vmax, cmap='coolwarm')
         cbar = im.images[-1].colorbar
-        cbar.set_label('sqrt(TS)')
+        cbar.set_label('sqrt(TS)', fontsize=14)
+        im.figure.axes[1].tick_params(labelsize=12)
     else:
         im = significance_map.plot(ax=ax1, add_cbar=True, vmin=vmin, vmax=vmax, cmap='coolwarm')
         cbar = plt.colorbar(im)
-        cbar.set_label('sqrt(TS)')        
+        cbar.set_label('sqrt(TS)', fontsize=14)
+        im.figure.axes[1].tick_params(labelsize=12)
     CircleSkyRegion(
         significance_map.geom.center_skydir,exclusion_radius).to_pixel(
         significance_map.geom.wcs).plot(
         ax=ax1, lw=2)
+    ax1.set_xlabel('Right Ascension', fontsize=14)
+    ax1.set_ylabel('Declination', fontsize=14)
+    ax1.tick_params(labelsize=12)
 
     if dist:
         x = np.linspace(-6, 6, 60)
-        mu, std = norm.fit(significance_off)
+        mu, std = norm.fit(significance_plot)
         p = norm.pdf(x, 0, 1)
         significance_all[significance_all <= -6] = -6
         significance_all[significance_all >= 6] = 6
-        significance_off[significance_off <= -6] = -6
-        significance_off[significance_off >= 6] = 6   
+        significance_plot[significance_plot <= -6] = -6
+        significance_plot[significance_plot >= 6] = 6   
     
         ax2 = plt.subplot(1, 2, 2)
         ax2.hist(
             significance_all,
             density=True,
             alpha=0.5,
-            label="all bins",
+            label="All bins",
             bins=x,
         )
     
         ax2.hist(
-            significance_off,
+            significance_plot,
             density=True,
             facecolor="None",
             alpha=0.5,
             edgecolor="k",
-            label="off bins",
+            label=f'{plot_label} bins',
             bins=x,
         )
     
         ax2.plot(x, p, lw=2, color="black")
         ax2.legend()
-        ax2.set_xlabel("Significance")
+        ax2.set_xlabel("Significance", fontsize=14)
         ax2.set_yscale("log")
         ax2.set_ylim(1e-5, 1)
         ax2.set_xlim(-6, 6)
-        ax2.annotate(f"mu = {mu:.2f}\nstd = {std:.2f}", xy=(0.05, 0.9), xycoords="axes fraction")
+        ax2.annotate(r'$\mu=${0:.1f}'.format(mu)+'\n'+r'$\sigma=${0:.1f}'.format(std), xy=(0.05, 0.85), xycoords="axes fraction", fontsize=12)
+        ax2.tick_params(labelsize=12)
+
+    plt.tight_layout()
     
     if prefix is not None:
         name = f'{prefix}_sig'
         if dist: name = f'{name}_dist'
-        f.savefig(f'{name}.png', bbox_inches='tight', dpi=300)  
+        f.savefig(f'{name}.png', bbox_inches='tight', dpi=300) 
     
     
 def plot_bkg(bkgrate, prefix=None):
@@ -473,14 +497,15 @@ def bias_correction(stacked_mimics, kernelsz=1, prefix=None):
         stacked_counts += stacked.counts
         stacked_background += stacked.npred()
     stacked_counts = stacked_counts.convolve(Gaussian2DKernel(kernelsz).array)
-    stacked_background = stacked_background.convolve(Gaussian2DKernel(kernelsz).array)
     with np.errstate(invalid="ignore", divide="ignore"):
         correction = stacked_counts / stacked_background
-    energy_edges = np.round(bkgrate.axes['energy'].edges,1)
+    correction.data[~stacked_mimics[0].mask_safe] = np.nan
+    energy_edges = np.round(stacked_counts.geom.axes['energy'].edges,1)
     f, axes = plt.subplots(ncols=3, nrows=2, figsize=(15,8), subplot_kw={'projection': correction.geom.wcs})
     for idx, ax in enumerate(axes.flat):
         correction.slice_by_idx({'energy': idx}).plot(ax=ax, add_cbar=True, vmin=0, vmax=2, cmap='coolwarm')
         ax.set_title(energy_edges[idx:idx+2])
+    f.tight_layout()
     correction.data = np.nan_to_num(correction.data)
     if prefix is not None:
         f.savefig(f'{prefix}_bias.png', bbox_inches='tight')
@@ -492,16 +517,18 @@ def plot_fov(fov_norms, dataname, prefix=None):
     fov_norms = np.array(fov_norms)
     f = plt.figure(figsize=(6, 5))
     ax = plt.gca()
-    x_lo, x_hi = [0.6, 1.8]
+    x_lo, x_hi = [0, 2]
     x = np.linspace(x_lo,x_hi,21)
+    # fov_norms[fov_norms < x_lo] = x_lo
+    # fov_norms[fov_norms > x_hi] = x_hi
+    ax.hist(fov_norms,density=True,bins=x)
     mu, std = norm.fit(fov_norms)
     p = norm.pdf(x, mu, std)
-    fov_norms[fov_norms < x_lo] = x_lo
-    fov_norms[fov_norms > x_hi] = x_hi
-    ax.hist(fov_norms,density=True,bins=x)
     ax.plot(x, p, lw=2, color="black")
-    ax.annotate(f'{dataname} FoV norm\n{mu:.2} +- {std:.2}',(0.7,0.9),xycoords='axes fraction')
-    if prefix is not None: f.savefig(f'{prefix}_fov_norms.png', bbox_inches='tight')    
+    ax.annotate(f'{dataname}'+'\n'+r'$\mu=${0:.2}, $\sigma=${1:.2}'.format(mu,std),(0.68,0.87),xycoords='axes fraction',fontsize=12)
+    ax.tick_params(labelsize=12)
+    ax.set_xlabel('FoV norm', fontsize=14)
+    if prefix is not None: f.savefig(f'{prefix}_norm.png', bbox_inches='tight')       
     
     
 def load_src_info(srcname):
